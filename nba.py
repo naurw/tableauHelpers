@@ -10,6 +10,9 @@ import pandas as pd
 import csv
 import xlrd 
 import os 
+import matplotlib.pyplot as plt 
+import matplotlib.patches as mpatches 
+import seaborn as sns 
 
 def excel_to_csv(): 
     wb = xlrd.open_workbook('/Users/William/Desktop/01-31-2022-nba-season-player-feed.xlsx')
@@ -64,6 +67,7 @@ print('The total number of players within this masterlist is: ', df.player.nuniq
 print('The total number of games within this masterlist is: ', df.game_id.nunique(), '.', sep = '')
 print('The total number of game days within this masterlist is: ', df.date.nunique(), '.', sep='')
 print('The 5 most popular dates with the most games played are: \n', df.date.value_counts().head(5))
+print('The top 5 players with the most games this NBA season: \n', df.player.value_counts().head(5))
 df.columns
 
 # =============================================================================
@@ -78,72 +82,115 @@ rebound = df[['game_id', 'date', 'player', 'offensive_rebound', 'defensive_rebou
 turnover = df[['game_id', 'date', 'player', 'turnovers']]
 
 # =============================================================================
-# Transforming the cleaned dataframes for insights 
+# Transforming threePts for analysis and visualization
 # =============================================================================
 pd.options.mode.chained_assignment = None  # default='warn'
 
 threePts['accuracy'] = (threePts['3_point']/threePts['3_point_attempts'])
-threePts['success_%'] = ((threePts['3_point']/threePts['3_point_attempts'])*100).round(2)
+threePts['game_success_%'] = ((threePts['3_point']/threePts['3_point_attempts'])*100).round(2)
 list(threePts.columns)
 threePts.drop(['accuracy'], axis = 1, inplace= True)
-threePts['success_%'].value_counts()
-threePts['success_%'].describe()
-threePts['total_3_point'] = threePts['3_point'].sum()
+threePts['game_success_%'].value_counts()
+threePts['game_success_%'].describe()
 
-# Sum up all the 3 points based on players 
+# Sum up all the 3 points based on players to show seasonal performance by player 
 cthreePts = threePts.groupby('player')[['3_point', '3_point_attempts']].sum() 
 cthreePts['season_%'] = ((cthreePts['3_point']/cthreePts['3_point_attempts'])*100).round(2)
+cthreePts = cthreePts.merge(player_games, how ='left', on='player')
+cthreePts.columns
+cthreePts['3_point_avg'] = cthreePts[['3_point', 'games_played']].mean(axis=1).round(0)
+cthreePts.rename(columns={'3_point':'cum_3_points', '3_point_attempts': 'cum_3_point_attempts'}, inplace=True)
+cthreePts.sort_values(by= '3_point_avg', ascending = False).head(1)
 
+demo = cthreePts.sort_values(by='cum_3_points', ascending = False).head(5).reset_index()
 
-# Group by player columns and then call transform on the success_% colum to calculate the total number 
-#sample['season_success'] = sample.groupby('player')['success_%'].transform('sum')
+# Single bar plot 
+plt.figure(figsize=(10,5))
+sns.set(style="darkgrid")
+fig = sns.barplot(x='player', y='season_%', data=demo, color = 'lightblue')
+plt.title('NBA 2021-2022 Top Five 3-Point Performance')
+fig.set_xticklabels(fig.get_xticklabels(), rotation=0, horizontalalignment='center')
+fig.set(xlabel='Player Name', ylabel='Seasonal Performance')
+plt.show()
+
+# Stacked bar plot
+plt.figure(figsize=(10,5))
+sns.set(style="darkgrid")
+bar1 = sns.barplot(x='player', y='cum_3_point_attempts', data=demo, color = 'lightblue')
+bar2 = sns.barplot(x='player', y='cum_3_points', data=demo, color = 'darkblue')
+top_bar = mpatches.Patch(color= 'darkblue', label='3 Points Made')
+bottom_bar = mpatches.Patch(color= 'lightblue', label='3 Points Attempts')
+plt.legend(handles=[top_bar, bottom_bar])
+plt.xlabel('Player Name')
+plt.ylabel('3-Point Shots')
+plt.title('NBA 2021-2022 Top Five 3-Point Performance')
+plt.show()
+
+demo.set_index('player').plot(kind='bar', stacked=True, color=['steelblue', 'red', 'cyan'])
+
+# =============================================================================
+# Transforming twoPts for analysis and visualization 
+# =============================================================================
+twoPts['game_success_%'] = ((twoPts['field_goals']/twoPts['field_goals_attempts'])*100).round(2)
+list(twoPts.columns)
+twoPts['game_success_%'].value_counts()
+twoPts['game_success_%'].describe()
+
+# Sum up all the 3 points based on players to show seasonal performance by player 
+ctwoPts = twoPts.groupby('player')[['field_goals', 'field_goals_attempts']].sum() 
+ctwoPts['season_%'] = ((ctwoPts['field_goals']/ctwoPts['field_goals_attempts'])*100).round(2)
+ctwoPts[ctwoPts['season_%'] == 0]
+len(ctwoPts[ctwoPts['season_%'] == 0])
+demo2 = ctwoPts.sort_values(by='field_goals', ascending = True).head(25).reset_index()
+
 
 # =============================================================================
 # Testing for loop interation
 # =============================================================================
+
+data = ['Will', '123', 3, 10], ['Marin', '234', 5, 5], ['Hants', '345', 10, 11], ['Will', '765', 4, 4], ['Marin', '836', 4, 20], ['Hants', '169', 0, 2]
+temp = pd.DataFrame(data, columns= ['player', 'game_id', 'free_throw', 'free_throw_attempts'])
+temp['success_%'] = ((temp['free_throw']/temp['free_throw_attempts'])*100).round(2)
+temp['total_games'] = temp.groupby(['player'])['free_throw'].transform('sum')
+temp.drop(columns='total_games', axis =1, inplace = True)
+
+temp2 = temp.groupby('player')['free_throw'].transform('sum').reset_index()
+temp3 = temp.groupby('player')['free_throw_attempts'].transform('sum').reset_index()
+temp4 = temp2.merge(temp3, how = 'left', on= 'index')
+
+# Change data into an array (2 dimensional object)
+data = [
+    ["Will", "123", 3, 10, 0.3],
+    ["Marin", "234", 5, 5, 1],
+    ["Hants", "345", 10, 11, 0.91],
+    ["Will", "765", 4, 4, 1],
+    ["Marin", "836", 4, 20, 0.2],
+    ["Hants", "169", 0, 2, 0],
+]
+
+# Pass the values into a dictionary 
+# Iterate based on occurences 
+player_dic = {}
+for i in range(len(data)):
+    player_name = data[i][0]
+
+    if player_name not in player_dic:
+        player_dic[player_name] = [data[i][4], 1]
+    else:
+        player_dic[player_name][0] += data[i][4]
+        player_dic[player_name][1] += 1
+print(player_dic)
+res = [
+    (player_name, player_data[0] / player_data[1])
+    for player_name, player_data in player_dic.items()
+]
 # =============================================================================
-# 
-# data = ['Will', '123', 3, 10], ['Marin', '234', 5, 5], ['Hants', '345', 10, 11], ['Will', '765', 4, 4], ['Marin', '836', 4, 20], ['Hants', '169', 0, 2]
-# temp = pd.DataFrame(data, columns= ['player', 'game_id', 'free_throw', 'free_throw_attempts'])
-# temp['success_%'] = ((temp['free_throw']/temp['free_throw_attempts'])*100).round(2)
-# temp['total_games'] = temp.groupby(['player'])['free_throw'].transform('sum')
-# temp.drop(columns='total_games', axis =1, inplace = True)
-# 
-# temp2 = temp.groupby('player')['free_throw'].transform('sum').reset_index()
-# temp3 = temp.groupby('player')['free_throw_attempts'].transform('sum').reset_index()
-# temp4 = temp2.merge(temp3, how = 'left', on= 'index')
-# 
-# data = [
-#     ["Will", "123", 3, 10, 0.3],
-#     ["Marin", "234", 5, 5, 1],
-#     ["Hants", "345", 10, 11, 0.91],
-#     ["Will", "765", 4, 4, 1],
-#     ["Marin", "836", 4, 20, 0.2],
-#     ["Hants", "169", 0, 2, 0],
-# ]
-# # temp = pd.DataFrame(data, columns= ['player', 'game_id', 'free_throw', 'free_throw_attempts'])
-# player_dic = {}
-# for i in range(len(data)):
-#     player_name = data[i][0]
-# 
-#     if player_name not in player_dic:
-#         player_dic[player_name] = [data[i][4], 1]
-#     else:
-#         player_dic[player_name][0] += data[i][4]
-#         player_dic[player_name][1] += 1
-# 
-# res = [
-#     (player_name, player_data[0] / player_data[1])
-#     for player_name, player_data in player_dic.items()
-# ]
 # for arr in data:
 #     print(arr[0])
-# 
-# 
-# print(player_dic)
-# 
-# print(res)
 # =============================================================================
+
+
+print(res)
 
 
 # Double check with boolean condition and column name to replace any nan values present 
