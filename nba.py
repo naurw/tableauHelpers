@@ -50,11 +50,15 @@ df['date'].describe
 df['date'].describe()
 
 # =============================================================================
-# Questions to explore
-# 1. Which NBA player has the highest 3PT avg? 
+# Questions to answer --> results were collected from WHOLE NUMBER ROUNDING
+# 1. Which NBA player has the highest 3PT avg?
+#       - Stephen Curry --> 5 per game 
 # 2. Which NBA player has the lowest FG avg? 
+#       - 73 NBA players; see dataframe --> 0 per game 
 # 3. Which NBA player has the most rebounds? 
+#       - Rudy Gobert --> 663 season rebounds; 15 per game 
 # 4. Which NBA player has the least turnovers?
+#       - 52 NBA players
 # =============================================================================
 # =============================================================================
 # Steps to approach: 
@@ -73,6 +77,7 @@ df.columns
 # =============================================================================
 # Cleaning the initial dataframe into separate dataframes for analysis
 # =============================================================================
+
 player_games = df['player'].value_counts().reset_index()
 player_games.columns = ['player', 'games_played']
 threePts = df[['game_id', 'date', 'player', '3_point', '3_point_attempts']]
@@ -81,10 +86,11 @@ freePts = df[['game_id', 'date', 'player', 'free_throw', 'free_throw_attempts']]
 rebound = df[['game_id', 'date', 'player', 'offensive_rebound', 'defensive_rebound', 'total_rebound']]
 turnover = df[['game_id', 'date', 'player', 'turnovers']]
 
-# =============================================================================
-# Transforming threePts for analysis and visualization
-# =============================================================================
 pd.options.mode.chained_assignment = None  # default='warn'
+
+# =============================================================================
+# Transforming threePts
+# =============================================================================
 
 threePts['accuracy'] = (threePts['3_point']/threePts['3_point_attempts'])
 threePts['game_success_%'] = ((threePts['3_point']/threePts['3_point_attempts'])*100).round(2)
@@ -98,8 +104,12 @@ cthreePts = threePts.groupby('player')[['3_point', '3_point_attempts']].sum()
 cthreePts['season_%'] = ((cthreePts['3_point']/cthreePts['3_point_attempts'])*100).round(2)
 cthreePts = cthreePts.merge(player_games, how ='left', on='player')
 cthreePts.columns
-cthreePts['3_point_avg'] = cthreePts[['3_point', 'games_played']].mean(axis=1).round(0)
+cthreePts['3_point_avg'] = (cthreePts['3_point']/cthreePts['games_played']).round(2)
 cthreePts.rename(columns={'3_point':'cum_3_points', '3_point_attempts': 'cum_3_point_attempts'}, inplace=True)
+
+cthreePts['3_point_avg'].describe()
+cthreePts['season_%'].describe()
+
 cthreePts.sort_values(by= '3_point_avg', ascending = False).head(1)
 
 demo = cthreePts.sort_values(by='cum_3_points', ascending = False).head(5).reset_index()
@@ -129,7 +139,7 @@ plt.show()
 demo.set_index('player').plot(kind='bar', stacked=True, color=['steelblue', 'red', 'cyan'])
 
 # =============================================================================
-# Transforming twoPts for analysis and visualization 
+# Transforming twoPts  
 # =============================================================================
 twoPts['game_success_%'] = ((twoPts['field_goals']/twoPts['field_goals_attempts'])*100).round(2)
 list(twoPts.columns)
@@ -137,15 +147,55 @@ twoPts['game_success_%'].value_counts()
 twoPts['game_success_%'].describe()
 
 # Sum up all the 3 points based on players to show seasonal performance by player 
-ctwoPts = twoPts.groupby('player')[['field_goals', 'field_goals_attempts']].sum() 
+ctwoPts = twoPts.groupby('player')[['field_goals', 'field_goals_attempts']].sum().reset_index() 
 ctwoPts['season_%'] = ((ctwoPts['field_goals']/ctwoPts['field_goals_attempts'])*100).round(2)
+ctwoPts = ctwoPts.merge(player_games, how ='left', on='player')
+ctwoPts.columns
+ctwoPts['field_goal_avg'] = (ctwoPts['field_goals']/ctwoPts['games_played']).round(2)
+ctwoPts.rename(columns={'field_goals':'cum_field_goals', 'field_goals_attempts': 'cum_field_goals_attempts'}, inplace=True)
+
+ctwoPts['field_goal_avg'].describe()
+ctwoPts['season_%'].describe()
+
 ctwoPts[ctwoPts['season_%'] == 0]
 len(ctwoPts[ctwoPts['season_%'] == 0])
-demo2 = ctwoPts.sort_values(by='field_goals', ascending = True).head(25).reset_index()
+ctwoPts.sort_values(by= 'field_goal_avg', ascending = True)
+len(ctwoPts[ctwoPts['field_goal_avg'] == 0])
+lowest = ctwoPts.loc[ctwoPts['field_goal_avg'] == 0]
 
+demo2 = ctwoPts.sort_values(by='field_goal_avg', ascending = True).head(73).reset_index()
 
 # =============================================================================
-# Testing for loop interation
+# Transforming rebounds 
+# =============================================================================
+
+crebound = rebound.groupby('player')[['total_rebound']].sum() 
+crebound.sort_values(by='total_rebound', ascending = False).head(1)
+crebound = crebound.merge(player_games, how= 'left', on= 'player')
+crebound['rebound_avg'] = (crebound['total_rebound']/crebound['games_played']).round(2)
+crebound.rename(columns={'total_rebound':'cum_rebound'}, inplace=True)
+
+crebound['rebound_avg'].describe()
+crebound['cum_rebound'].describe()
+
+# =============================================================================
+# Transforming turnovers 
+# =============================================================================
+
+cturnover = turnover.groupby('player')['turnovers'].sum().reset_index()
+cturnover.sort_values(by='turnovers', ascending = True).head(52)
+cturnover = cturnover.merge(player_games, how= 'left', on= 'player')
+cturnover['turnover_avg'] = (cturnover['turnovers']/cturnover['games_played']).round(2)
+cturnover.rename(columns={'turnovers':'cum_turnovers'}, inplace=True)
+
+cturnover['turnover_avg'].describe()
+cturnover['cum_turnovers'].describe()
+
+len(cturnover[cturnover['cum_turnovers'] == 0])
+len(cturnover[cturnover['turnover_avg'] == 0])
+
+# =============================================================================
+# Testing for-loop automation/iteration
 # =============================================================================
 
 data = ['Will', '123', 3, 10], ['Marin', '234', 5, 5], ['Hants', '345', 10, 11], ['Will', '765', 4, 4], ['Marin', '836', 4, 20], ['Hants', '169', 0, 2]
@@ -184,11 +234,11 @@ res = [
     (player_name, player_data[0] / player_data[1])
     for player_name, player_data in player_dic.items()
 ]
+
 # =============================================================================
 # for arr in data:
 #     print(arr[0])
 # =============================================================================
-
 
 print(res)
 
