@@ -49,6 +49,17 @@ df['date'] = pd.to_datetime(df['date']).dt.strftime('%m-%d-%Y')
 df['date'].describe
 df['date'].describe()
 
+df.to_csv('/Users/William/Desktop/nba_player_feed.csv')
+
+# Alternatively use pandas module to convert multiple sheets within an excel file into separate csv files 
+# - passing `sheet_name=None` returns a dictionary 
+# - with the form {sheet_name: dataframe}
+data = pd.read_excel('file.xlsx', sheet_name=None)
+
+# loop through the dictionary and save csv
+for sheet_name, df in data.items():
+    df.to_csv(f'{sheet_name}.csv')
+
 # =============================================================================
 # Questions to answer --> results were collected from WHOLE NUMBER ROUNDING
 # 1. Which NBA player has the highest 3PT avg?
