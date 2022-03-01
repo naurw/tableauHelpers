@@ -1,5 +1,5 @@
-# tableauJson
-Scripts for pulling in datasets and supplementing analyses performed on Tableau 
+# Within this repo:
+* Scripts and datasets that supplement/complement the analyses performed on Tableau 
 
-# Streamlit 
+## WIP: Streamlit 
 * https://share.streamlit.io/naurw/tableauhelpers/main/nbaStreamlit.py 
